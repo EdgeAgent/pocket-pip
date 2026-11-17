@@ -22,8 +22,12 @@ Inspired by Spencer Ryan's pocket-Jarvis watch build — rebuilt our way, with t
 
 The LESOWN P88 bar (1920 × 480) plugged into the home machine, served by the bridge itself,
 mid-conversation with the live bridge (demo brain). The 🎙 button is push-to-talk voice.
-Left: Pip himself (his pose changes with his state). Right: the dashboard rail —
-state, brain, bridge, voice, last exchange.
+Left: **Roboto's head** — floating, head only — with the agent strip underneath
+(Pip · Scout · Builder · Writer, each with its live status). Right: the conversation,
+with five switchable views up top — **Conversation · Agents · Activity · Results · Status** —
+because the bar is an orchestration screen, not one chat box: the Agents view shows
+who's doing what, Activity is the step feed, Results collects the finished work,
+Status is the dashboard (state, brain, bridge, voice, last exchange).
 
 ![Pocket Pip desk face on the LESOWN P88 — live bridge, real conversation](assets/screenshot-display.svg)
 
@@ -35,19 +39,33 @@ Exactly what the M5Stack StopWatch firmware draws: same pet, same states, same r
 
 ## One Pip, every screen
 
-Pip's portrait is one canonical image (Kevin-approved, `assets/pip-character.png`),
-cut for every screen he lives on. The faces swap **poses per state** — idle and
-listening use the portrait, thinking gets its own pose, **typing** (while a reply
-is being produced) gets the head-down-at-the-keyboard pose, and talking waves at
-the camera. The desk face is also a **dashboard**: pose on the left, panel on the
-right — agent state, brain, bridge, voice, and the last exchange. It auto-fits
-any window; on a non-bar screen (aspect < 2:1) it switches to a compact layout
-with the rail hidden and the pet widened, so the same face runs on a small
-~3″ panel today and the 1920 × 480 P88 bar later.
+The face is **Roboto** — the Robot Orchestra floating head
+(`assets/roboto-head.png`, the canonical RO head image, byte-identical to the
+one in the Robot Orchestra site assets), **head only, no body**, a little
+bigger on the desk face than before. States are told apart by the head's
+animation, the status line, and the **thinking bubble**: when a message lands,
+the head shrinks *sideways* into the conversation — **anchored: its top edge
+never moves, in any state, ever** — the bubble opens beside it and his
+thoughts type out inside ("Reading that…", "Checking the clock at home
+base…", "Putting the reply together…") while the step chips tick off
+(Heard you → Thinking → Working → Talking → Done). A result card lands in
+the chat, the head returns to full size, and he answers. The bridge records
+the same five steps server-side (`GET /events`), with the working step
+routed to an agent — **Pip · Scout · Builder · Writer** — so the bar's
+Agents and Activity views show who's doing what. (The earlier Pip portrait
+and its pose set stay in `assets/` as assets; they are not the face anymore.)
+
+The desk face auto-fits any window. On a non-bar screen (aspect < 2:1) it
+switches to a **compact layout with its own logical stage** (960 × 540, or
+960 × 640 on 3:2 panels) — conversation view only, the head and bubble at
+readable size — so the same face runs on Kevin's small ~3″ panel today and
+the 1920 × 480 P88 bar later.
+
+The retained portrait assets, cut per screen (kept in the repo; no longer the face):
 
 | Variant | File | For |
 |---|---|---|
-| Round 480 × 480 | `assets/sizes/pip-round-watch-480.png` | The StopWatch face (used by the preview) |
+| Round 480 × 480 | `assets/sizes/pip-round-watch-480.png` | Round displays |
 | Round 240 × 240 | `assets/sizes/pip-round-watch-240.png` | Small round displays |
 | Square 480 × 480 | `assets/sizes/pip-small-square-480.png` | Small square panels |
 | Landscape 800 × 480 | `assets/sizes/pip-small-landscape-800x480.png` | Small wide panels |
@@ -75,7 +93,7 @@ CORS friction.
   P88 desk face ──┐
                   ├──►  bridge (Python, :8765)  ──►  Ollama / demo brain
   StopWatch ──────┘     POST /chat · POST /voice        (on your home server)
-                        GET /health · faces served at /display/ + /preview/
+                        GET /health · /events · /agents · faces at /display/ + /preview/
 ```
 
 ## 🎙️ Voice channel
@@ -136,12 +154,13 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
 
 | Path | What |
 |---|---|
-| `bridge/` | The brain bridge — stdlib-only Python server (`/chat`, `/voice`, `/health`, token auth) that also serves the web faces |
-| `simulator/` | CLI that pretends to be the watch, for hardware-free testing |
-| `display/` | Desk face — 1920 × 480 kiosk page for the LESOWN P88, with push-to-talk voice (demo mode if the bridge is offline) |
-| `preview/` | Round watch face in the browser — the StopWatch UI, mirrored |
+| `bridge/` | The brain bridge — stdlib-only Python server (`/chat`, `/voice`, `/health`, `/events`, `/agents`, token auth) that also serves the web faces |
+| `simulator/` | CLI that pretends to be the watch, for hardware-free testing — prints the bridge's recorded step events per turn |
+| `display/` | Desk face — 1920 × 480 kiosk page for the LESOWN P88: five views (Conversation / Agents / Activity / Results / Status), thinking bubble, push-to-talk voice (demo mode if the bridge is offline); compact layout for small panels |
+| `preview/` | Round watch face in the browser — the StopWatch UI, mirrored, with the same step flow |
 | `firmware/` | StopWatch firmware (PlatformIO, M5Unified) — Wi-Fi chat, BLE flagged off |
-| `assets/` | Banner, the canonical Pip portrait (`pip-character.png` + web copy), per-state poses (`poses/`), per-screen size variants (`sizes/`), an animated clip (`pip-animated.mp4`), and screenshots of the actual surfaces, rendered headlessly from the live pages (`.svg` files wrap the rendered PNG pixels so GitHub displays them; the raw `.png` originals are alongside in the repo) |
+| `tests/` | Bridge test suite — `python3 tests/test_bridge.py` (stdlib unittest, boots the real bridge) |
+| `assets/` | Banner, the Roboto head (`roboto-head.png` — the face), the retained Pip portrait (`pip-character.png` + web copy), per-state poses (`poses/`), per-screen size variants (`sizes/`), an animated clip (`pip-animated.mp4`), and screenshots of the actual surfaces, rendered headlessly from the live pages (`.svg` files wrap the rendered PNG pixels so GitHub displays them; the raw `.png` originals are alongside in the repo) |
 | `docs/` | [`SPEC.md`](docs/SPEC.md) — architecture, transports, security · [`TEST-RUN.md`](docs/TEST-RUN.md) — test receipts |
 
 ## Status — honest version
@@ -164,6 +183,17 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
   states (idle, listening, thinking, typing, talking) swap to the right
   pose and animation on both faces, and the desk face's compact mode
   engages on a small 800 × 480 window (see TEST-RUN §9).
+- **Production pass (TEST-RUN §10):** the bridge records **step events**
+  per exchange (heard → thinking → working → talking → done, each with
+  its agent, a thought line, and a measured duration) and serves them at
+  `GET /events`; `GET /agents` serves the Pip / Scout / Builder / Writer
+  roster. The desk face renders the work: anchored Roboto head, thinking
+  bubble with typed thoughts, step chips, result cards, and the bar's
+  five views. Compact mode is a real layout (its own 960-wide stage)
+  that fills 800 × 480 and 480 × 320 panels. A stdlib test suite
+  (`tests/test_bridge.py`, 11 tests) plus a 26-check headless browser
+  run against the live bridge both pass; the simulator prints the
+  recorded steps per turn.
 
 **Not yet:**
 - The voice plumbing was proven with **stub speech tools** — real
@@ -182,7 +212,10 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
 ## Design
 
 Edge Agency system — Ink Navy `#060A14`, Gold `#E8B84B`, Teal `#2DD4BF`, Space Grotesk / Inter.
-Pip's look (glossy white head, sunglasses, black suit, gold tie, laptop with the gold P,
-sitting on his cloud) is one canonical portrait — `assets/pip-character.png` — embedded
-in the banner and both web faces, with matching per-state poses in `assets/poses/`.
-The firmware draws its own small rendition of the same character.
+The face is Roboto — the Robot Orchestra floating head, one canonical image
+(`assets/roboto-head.png`, head only) embedded in both web faces; Roboto's design
+itself is unchanged from Robot Orchestra. The earlier Pip look (glossy white head,
+sunglasses, black suit, gold tie, laptop with the gold P, sitting on his cloud) is
+one canonical portrait — `assets/pip-character.png` — kept in the repo with its
+per-state poses in `assets/poses/`, and still carried in the banner.
+The firmware draws its own small rendition of the character.

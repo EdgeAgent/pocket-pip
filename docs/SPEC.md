@@ -87,11 +87,27 @@ plug it into a laptop or the EDGESERVER and the host does all the thinking.
 One bridge, one brain, every body is a thin client:
 
 - **Bridge** (`bridge/bridge.py`) — stdlib-only Python, no pip installs.
-  `POST /chat {"message": "..."}` → `{"reply": "...", "brain": "...", "state": "talking"}`.
+  `POST /chat {"message": "..."}` → `{"reply": "...", "brain": "...", "mode": "...", "state": "talking", "steps": [...], "thoughts": [...]}`.
   `GET /health` reports status, which brain is active, the voice
   configuration, and what it serves. The bridge also serves the web faces
   itself — `display/` at `/display/` and `/`, `preview/` at `/preview/` —
   so page and API share an origin.
+- **Step events (the visible work):** every exchange is recorded as five
+  steps — heard → thinking → working → talking → done — each with the
+  agent who owns it (Pip hears and talks; the working step is routed to
+  Scout / Builder / Writer by what the message asks, else Pip), a
+  thought line for the thinking bubble, and a real measured duration.
+  `GET /events` (token required) serves the recorded exchanges;
+  `GET /agents` serves the roster (Pip / Scout / Builder / Writer) with
+  per-agent status and current task — it drives the bar face's Agents
+  view. `mode` is `"demo"` whenever the demo brain answered; demo mode
+  labels the roster simulated, plainly. Set `POCKETPIP_STEP_LOG` to a
+  path to also append each exchange as a JSON line on disk.
+- **The face** is Roboto — the Robot Orchestra floating head
+  (`assets/roboto-head.png`, the canonical RO head image, head only, no
+  body) — with the talk/thinking bubble anchored beside it. States are
+  told apart by animation, the status line, and the bubble; the head's
+  anchor never moves vertically in any state.
 - **Brain (pluggable):** set `OLLAMA_URL` (e.g. `http://localhost:11434`)
   and the bridge forwards to a local Ollama model (`OLLAMA_MODEL`, default
   `llama3.2`). Unset — or if Ollama hiccups — a built-in demo brain answers,

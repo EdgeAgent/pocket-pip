@@ -4,7 +4,10 @@ Pocket Pip — Watch simulator.
 
 Pretends to be the M5Stack StopWatch on your desk: sends chat messages to the
 bridge, prints the replies, and walks through the same pet state transitions
-the real firmware uses (IDLE -> LISTENING -> THINKING -> TALKING -> IDLE).
+the faces use (IDLE -> LISTENING -> THINKING -> WORKING -> TALKING -> IDLE).
+It also prints the step events the bridge recorded for the exchange
+(heard -> thinking -> working -> talking -> done, GET /events has the same
+record) — the visible-work receipt.
 
 Usage:
   python3 simulator.py                      # scripted 3-message demo conversation
@@ -65,9 +68,15 @@ def one_turn(url: str, token: str, message: str):
         print("  [watch] bridge unreachable: %s" % e)
         set_state("IDLE", "(error)")
         return
+    set_state("WORKING", "(bridge is working — steps below)")
+    for step in result.get("steps", []):
+        line = "  [steps] ✓ %-8s %4dms" % (step.get("step", "?"), step.get("ms", 0))
+        if step.get("thought"):
+            line += "  — %s" % step["thought"]
+        print(line, flush=True)
     set_state("TALKING", "(reply on screen)")
     print("PIP: %s" % result.get("reply", ""))
-    print("  [watch] brain used: %s" % result.get("brain", "?"))
+    print("  [watch] brain used: %s (mode: %s)" % (result.get("brain", "?"), result.get("mode", "?")))
     set_state("IDLE", "(back to the cloud)")
 
 

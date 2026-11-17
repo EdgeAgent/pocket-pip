@@ -42,9 +42,26 @@ Endpoints:
   GET  /assets/       -> shared assets (the Pip portrait the faces load)
   GET  /health        -> {"status": "ok", "brain": ..., "voice": {...}}
   GET  /voice/status  -> voice configuration on the bridge
-  POST /chat          -> {"message": "..."}  =>  {"reply": "...", ...}
+  GET  /events        -> step events of recent exchanges (token required):
+                         {last: {...}, history: [...]} — each exchange
+                         records heard -> thinking -> working -> talking
+                         -> done, with a thought line and a real measured
+                         duration per step, so a face can SHOW the work.
+                         Every step carries its agent (pip / scout /
+                         builder / writer) — who's doing what.
+  GET  /agents        -> the roster with per-agent status + current task
+                         (drives the bar face's Agents view). Demo mode
+                         labels the roster simulated, plainly.
+  POST /chat          -> {"message": "..."}
+                      =>  {"reply": "...", "brain": ..., "mode": ...,
+                           "steps": [...], "thoughts": [...]}
   POST /voice         -> {"text": "..."} or {"audio_base64": "..."}
-                      =>  {"transcript": ..., "reply": ..., "audio_base64": ...}
+                      =>  {"transcript": ..., "reply": ..., "audio_base64": ...,
+                           "steps": [...], "mode": ...}
+
+"mode" is "demo" whenever the built-in demo brain (or its fallback)
+produced the reply, "ollama" only when a real Ollama model answered —
+the faces label demo mode honestly instead of dressing it up.
 
 Stdlib only. No pip installs. Python 3.10+.
 
@@ -62,6 +79,10 @@ Env vars:
                       the command (or is appended as the last argument);
                       the transcript must be printed to stdout. Example:
                       whisper {file} --model small --output_format txt
+  POCKETPIP_STEP_LOG  optional path: append every exchange (with its step
+                      events) as one JSON object per line. Unset = the
+                      exchanges are kept in memory only (last 20, served
+                      by GET /events).
 """
 
 import base64
@@ -74,6 +95,7 @@ import tempfile
 import time
 import urllib.request
 import urllib.error
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TOKEN = os.environ.get("POCKETPIP_TOKEN", "dev-token-change-me")
@@ -83,6 +105,7 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "").rstrip("/")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 PIPER_CMD = os.environ.get("POCKETPIP_PIPER_CMD", "").strip()
 WHISPER_CMD = os.environ.get("POCKETPIP_WHISPER_CMD", "").strip()
+STEP_LOG = os.environ.get("POCKETPIP_STEP_LOG", "").strip()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIRS = {
@@ -150,6 +173,160 @@ def ask_brain(message: str) -> tuple[str, str]:
         except Exception as exc:  # keep the loop alive; watch shouldn't die on a model hiccup
             return "(Ollama unreachable: %s) Falling back — %s" % (exc.__class__.__name__, demo_brain(message)), "demo-fallback"
     return demo_brain(message), "demo"
+
+
+# --------------------------------------------------------------------------
+# Step events — the visible work. Every exchange is recorded as the same
+# five steps the faces render: heard -> thinking -> working -> talking ->
+# done. Each step carries the thought line the face shows in Pip's
+# thinking bubble and a REAL measured duration (ms) for that phase.
+# The faces animate the sequence; the bridge's record (GET /events) is
+# the proof of what actually happened, in order.
+# --------------------------------------------------------------------------
+
+STEP_FLOW = [
+    ("heard", "Heard you"),
+    ("thinking", "Thinking"),
+    ("working", "Working"),
+    ("talking", "Talking"),
+    ("done", "Done"),
+]
+
+EXCHANGES = deque(maxlen=20)  # most recent last; served by GET /events
+
+# The roster the bar face's Agents view renders. Pip is the face and the
+# host — he hears you and does most of the talking; the working step of
+# an exchange is routed to a specialist when the message asks for their
+# kind of work. In demo mode this roster is simulated (labelled as such
+# in every response) — the routing is real, the workers are the demo
+# brain wearing different hats, and /agents says so plainly.
+AGENTS = [
+    {"id": "pip", "name": "Pip", "role": "Companion — hears you, talks with you, routes the work"},
+    {"id": "scout", "name": "Scout", "role": "Research — looks things up"},
+    {"id": "builder", "name": "Builder", "role": "Builds — codes and makes things"},
+    {"id": "writer", "name": "Writer", "role": "Words — drafts, rewrites, captions"},
+]
+
+
+def route_agent(message: str) -> str:
+    """Which agent the working step belongs to, by what the message asks."""
+    m = message.strip().lower()
+    if any(w in m for w in ("research", "look up", "look into", "search", "find out", "investigate")):
+        return "scout"
+    if any(w in m for w in ("write", "draft", "rewrite", "caption", "wording")):
+        return "writer"
+    if any(w in m for w in ("build", "code", "make me", "create", "fix")):
+        return "builder"
+    return "pip"
+
+
+def plan_thoughts(message: str) -> list[str]:
+    """Thought lines for the thinking bubble — narration of the real
+    phases (reading the message, checking what the brain knows about
+    the topic, composing). Topic-aware so the bubble isn't boilerplate."""
+    m = message.strip().lower()
+    thoughts = ["Reading that…"]
+    if "time" in m or "clock" in m:
+        thoughts.append("Checking the clock at home base…")
+    elif "weather" in m:
+        thoughts.append("Thinking about the weather back home…")
+    elif "robot orchestra" in m:
+        thoughts.append("Checking on Robot Orchestra, back at the house…")
+    elif "who are you" in m or "your name" in m:
+        thoughts.append("That's me he's asking about…")
+    elif "thank" in m:
+        thoughts.append("He's being nice. Be nice back…")
+    elif any(w in m for w in ("hello", "hi", "hey")):
+        thoughts.append("A hello — easy one…")
+    else:
+        thoughts.append("Checking what I know about that…")
+    thoughts.append("Putting the reply together…")
+    return thoughts
+
+
+def run_exchange(message: str) -> tuple[str, str, str, list[dict]]:
+    """Run one message through the brain, recording the step events.
+    Returns (reply, brain, mode, steps). mode is "demo" unless a real
+    Ollama model produced the reply — faces label it honestly."""
+    steps = []
+    marks = {}
+
+    def stamp(step: str):
+        marks[step] = time.monotonic()
+
+    worker = route_agent(message)
+    thoughts = plan_thoughts(message)
+    stamp("start")
+    stamp("heard")
+    steps.append({"step": "heard", "label": "Heard you", "agent": "pip", "thought": thoughts[0], "ms": 0})
+    stamp("thinking")
+    steps.append({"step": "thinking", "label": "Thinking", "agent": "pip",
+                  "thought": thoughts[1] if len(thoughts) > 1 else thoughts[0], "ms": 0})
+    stamp("working")
+    reply, brain = ask_brain(message)
+    work_ms = int(round((time.monotonic() - marks["working"]) * 1000))
+    steps.append({"step": "working", "label": "Working", "agent": worker, "thought": thoughts[-1], "ms": work_ms})
+    steps.append({"step": "talking", "label": "Talking", "agent": "pip", "thought": "Here's the answer…", "ms": 0})
+    total_ms = int(round((time.monotonic() - marks["start"]) * 1000))
+    steps.append({"step": "done", "label": "Done", "agent": "pip", "thought": "", "ms": total_ms})
+    mode = "ollama" if brain == "ollama" else "demo"
+
+    record = {
+        "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "message": message,
+        "reply": reply,
+        "brain": brain,
+        "mode": mode,
+        "worker": worker,
+        "steps": steps,
+        "total_ms": total_ms,
+    }
+    EXCHANGES.append(record)
+    if STEP_LOG:
+        try:
+            with open(STEP_LOG, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+        except OSError:
+            pass  # the in-memory record still stands; logging must never kill a reply
+    return reply, brain, mode, steps
+
+
+def agents_state() -> dict:
+    """The roster with who's doing what, derived from the exchange log.
+    Pip is always online (he's the face). A specialist's current task is
+    the most recent exchange routed to them; the freshest one is marked
+    as the last to work. In demo mode the roster is simulated and the
+    response says so — the Agents view labels it DEMO."""
+    last_task = {}
+    for rec in EXCHANGES:
+        last_task[rec["worker"]] = rec
+    latest_worker = EXCHANGES[-1]["worker"] if EXCHANGES else None
+    agents = []
+    for a in AGENTS:
+        rec = last_task.get(a["id"])
+        if a["id"] == "pip":
+            status = "online"
+            task = EXCHANGES[-1]["message"] if EXCHANGES else "Listening — say the word."
+        elif rec is None:
+            status = "standing by"
+            task = "Nothing yet."
+        else:
+            status = "did the last job" if a["id"] == latest_worker else "standing by"
+            task = rec["message"]
+        agents.append({
+            **a,
+            "status": status,
+            "current_task": task,
+            "last_ms": rec["total_ms"] if rec else None,
+            "last_at": rec["time"] if rec else None,
+        })
+    return {
+        "mode": "ollama" if OLLAMA_URL else "demo",
+        "note": ("Simulated roster — demo mode: the routing is real, the workers are the "
+                 "demo brain wearing different hats." if not OLLAMA_URL else
+                 "Roster routed by the bridge; replies come from the connected Ollama model."),
+        "agents": agents,
+    }
 
 
 # --------------------------------------------------------------------------
@@ -270,11 +447,21 @@ class Handler(BaseHTTPRequestHandler):
                 "brain": "ollama" if OLLAMA_URL else "demo",
                 "ollama_model": OLLAMA_MODEL if OLLAMA_URL else None,
                 "voice": voice_status(),
+                "mode": "ollama" if OLLAMA_URL else "demo",
+                "events": "/events (token required) — step events of recent exchanges",
                 "serves": ["/display/", "/preview/", "/assets/"],
                 "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             })
         elif path == "/voice/status":
             self._json(200, {"voice": voice_status()})
+        elif path == "/events":
+            if not self._authorized():
+                self._json(401, {"error": "bad or missing X-Pocket-Token"})
+                return
+            history = list(EXCHANGES)
+            self._json(200, {"last": history[-1] if history else None, "history": history})
+        elif path == "/agents":
+            self._json(200, agents_state())
         elif path == "/" or path == "/display" or path.startswith("/display/"):
             self._serve_static("/display", path[len("/display"):])
         elif path == "/preview" or path.startswith("/preview/"):
@@ -306,8 +493,15 @@ class Handler(BaseHTTPRequestHandler):
         if not message:
             self._json(400, {"error": "message is required"})
             return
-        reply, brain = ask_brain(message)
-        self._json(200, {"reply": reply, "brain": brain, "state": "talking"})
+        reply, brain, mode, steps = run_exchange(message)
+        self._json(200, {
+            "reply": reply,
+            "brain": brain,
+            "mode": mode,
+            "state": "talking",
+            "steps": steps,
+            "thoughts": [s["thought"] for s in steps if s["thought"]],
+        })
 
     def _handle_voice(self):
         if not self._authorized():
@@ -342,8 +536,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "voice needs \"text\" or \"audio_base64\""})
             return
 
-        # --- brain ---------------------------------------------------------
-        reply, brain = ask_brain(transcript)
+        # --- brain (recorded as step events, same as /chat) ---------------
+        reply, brain, mode, steps = run_exchange(transcript)
 
         # --- mouth: synthesize the reply, if a mouth is configured ---------
         if not PIPER_CMD:
@@ -353,6 +547,8 @@ class Handler(BaseHTTPRequestHandler):
                 "transcript": transcript,
                 "reply": reply,
                 "brain": brain,
+                "mode": mode,
+                "steps": steps,
                 "voice": voice_status(),
             })
             return
@@ -360,12 +556,15 @@ class Handler(BaseHTTPRequestHandler):
             wav = run_tts(reply)
         except Exception as exc:
             self._json(502, {"error": "speech synthesis failed: %s" % exc,
-                             "transcript": transcript, "reply": reply, "brain": brain})
+                             "transcript": transcript, "reply": reply, "brain": brain,
+                             "mode": mode, "steps": steps})
             return
         self._json(200, {
             "transcript": transcript,
             "reply": reply,
             "brain": brain,
+            "mode": mode,
+            "steps": steps,
             "state": "talking",
             "audio_base64": base64.b64encode(wav).decode("ascii"),
             "audio_mime": "audio/wav",

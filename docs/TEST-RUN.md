@@ -266,3 +266,97 @@ as the generated webp, `assets/pip-character.webp`).
   committed in the local repo; the snapshot push carries the UTF-8
   files (the faces and banner embed the pixels, the twins wrap the
   rest), exactly as with the §8 screenshot originals.
+
+---
+
+# Production pass — step events, Roboto face, multi-view bar, real compact
+
+Run 2026-11-16 late night (America/Toronto), same VM, at Kevin's order:
+make it production-ready and match the reference build — a pocket pet
+that converses with the local agent over the network, with the work
+visible. Kevin's corrections folded in as they arrived: the face is the
+**Robot Orchestra head (Roboto)**, floating head only; the bubble is
+**anchored** (never drops); the bar is **multi-view orchestration**;
+the roster is **Pip / Scout / Builder / Writer**; the head is a bit
+bigger; the agent strip sits **low** in the pet column.
+
+## 10. Face swap — Roboto's real head ✅
+
+- Canonical source found on disk: `robot-orchestra-head.png`
+  (663 × 528, RGBA, transparent corners verified) — byte-identical
+  (md5 `3b81999671…`) across every Robot Orchestra copy on the machine
+  (site source `robot-orchestra-v2-build/site/public/`, the shipped
+  site dist, the HQ space asset). Copied byte-identical to
+  `assets/roboto-head.png` and embedded in both faces as the pet image.
+- The head was **not** redrawn and its design is untouched. Verified in
+  the headless run: both faces' pet `<img>` reports
+  `naturalWidth/naturalHeight = 663/528`.
+- The Pip portrait + poses remain in the repo as assets (§9 stands as
+  their record); they are no longer the face. States are now told apart
+  by CSS animation + status line + bubble, all on the one head.
+
+## 11. Bridge step events + agents ✅ (tests: 11/11)
+
+- `run_exchange()` records five steps per exchange — heard → thinking →
+  working → talking → done — each with `agent`, `thought`, and a real
+  measured `ms`. The working step is routed: research → Scout,
+  write/draft → Writer, build/code → Builder, else Pip. `/chat` and
+  `/voice` responses carry `steps`, `thoughts`, and an honest `mode`
+  (`"demo"` unless a real Ollama model answered). `GET /events`
+  (token required) serves the recorded exchanges; `GET /agents`
+  serves the roster with per-agent status + current task, demo mode
+  labelled "Simulated roster" in the response itself.
+  `POCKETPIP_STEP_LOG` optionally appends exchanges as JSONL.
+- New suite `tests/test_bridge.py` (stdlib unittest, boots the real
+  bridge on a scratch port): **11 tests, all OK** — step order + mode,
+  topic-aware thoughts, agent routing + identity on steps, roster
+  shape + honest demo label, health, 401s, /chat steps, /events
+  record + auth, /agents endpoint, honest /voice 503 (steps included,
+  no audio faked), faces served + traversal 404.
+- Simulator re-run against the new bridge: exit 0, all three scripted
+  exchanges, and it now prints the recorded steps per turn
+  (`[steps] ✓ heard 0ms — Reading that…` … `[watch] state -> WORKING`).
+
+## 12. Faces — headless verification, 26/26 checks ✅
+
+Driven with headless Chromium (playwright-core) against the live
+bridge; screenshots re-rendered from these runs.
+
+- **Bar 1920 × 480:** badge "Live bridge"; face is the Roboto image;
+  on send, the thinking bubble appears and thought lines type into it;
+  **the head's top edge never moved** (bounding-box top sampled
+  through the whole work cycle, ±2 px) while its width shrank sideways
+  (340 → 204 px) and returned to full size at the same anchor; the
+  result card lands naming the worker ("Scout did the working step ·
+  DEMO MODE"); Agents view renders 4 cards (Pip/Scout/Builder/Writer)
+  with Scout marked "did the last job"; Activity shows the step rows;
+  Results holds the finished exchange; Status shows the dashboard;
+  the agent strip under the head shows all four agents with Scout
+  marked worked.
+- **Compact 800 × 480:** compact stage (960 × 540 logical) fills
+  ≥ 92 % of the panel height (the old layout rendered a 200 px strip);
+  view switcher hidden (conversation only); bubble + typed thoughts
+  verified mid-work; result card lands.
+- **Compact 480 × 320:** a taller compact tier (960 × 640) engages on
+  3:2 panels — stage fills ≥ 92 % of height, no horizontal overflow,
+  head visible.
+- **Preview:** face is the Roboto image; the scripted run lands 3
+  result cards and ends with all five step chips ✓ done.
+- Fixed along the way: two checks in the harness itself (CSS
+  text-transform made innerText uppercase; a width measurement taken
+  mid-transition) and one real layout gap (the 480 × 320 fill, above).
+- Screenshots re-rendered: `screenshot-display.png` (bar, post-
+  conversation, strip + views visible), `screenshot-display-small.png`
+  (800 × 480 compact), `screenshot-preview.png`; `.svg` twins
+  regenerated for the two README-referenced shots.
+
+## Still not proven after this pass
+
+- Everything from the earlier lists stands: no StopWatch hardware, no
+  physical P88 or small panel (layout verified in a real browser engine
+  at the panels' resolutions, not on the glass), Ollama path untested,
+  real Piper/faster-whisper not installed in the VM, no live mic run.
+- The Agents roster is **simulated in demo mode** (labelled as such in
+  the API, the Agents view, and the result cards): the routing and the
+  step records are real, the workers are the demo brain. Real
+  multi-agent execution behind the roster is future work, not claimed.
