@@ -204,3 +204,65 @@ stage. The shipped screenshot is the fixed layout.
 - A live human voice through the desk-face mic (no mic in the VM).
 - Everything in the base list above: no StopWatch hardware, no physical
   P88, Ollama path untested, BLE unimplemented.
+
+---
+
+# Visual swap — the polished portrait, poses, sizes
+
+Run 2026-11-16 late evening (America/Toronto), after Kevin rejected the
+hand-drawn SVG pet ("looks like shit") and then approved the glossy 3D
+portrait, uploading his own copy back (1600 × 1600 PNG — that upload is
+the canonical source, `assets/pip-character.png`; it is the same image
+as the generated webp, `assets/pip-character.webp`).
+
+## 9. Portrait + pose set wired into both faces ✅ PASS
+
+- The inline SVG pet is **gone** from `display/index.html` and
+  `preview/index.html` (grep: no `<svg`, no mouth elements). The banner
+  was rebuilt around the portrait (same layout/text, portrait embedded,
+  circle-clipped into the watch motif).
+- Canonical wiring: the faces embed the images as data URIs, so they
+  stay single self-contained files and the GitHub snapshot route (UTF-8
+  text only) can carry them. The bridge additionally serves `/assets/`
+  (added this run; `GET /assets/pip-character.webp` → 200,
+  `image/webp`, 218,462 bytes; `/health` now lists it under `serves`).
+- **Poses per state** (Kevin's ask: "typing when he's typing… a
+  dashboard or something"): idle = main portrait; listening = portrait
+  + CSS glow/scale; thinking = `assets/poses/pip-thinking.webp`;
+  **working/typing** = `assets/poses/pip-typing.webp` (head down, hands
+  on the keyboard, screen glow in the sunglasses) — the desk face now
+  runs listening → thinking → **typing** while the reply is produced →
+  talking; talking = `assets/poses/pip-talking.webp` (waving, laptop
+  closed). The preview mirrors the same map with the round variant for
+  idle/listening and a Typing state button.
+- Verified in headless Chromium against the live bridge, both faces:
+  for all five states, the pet `<img>` `src` equals the mapped pose and
+  the computed animation matches — idle `bob`, listening `listenPulse`
+  (scale + teal glow), thinking `thinkTilt`, working `typeTap`,
+  talking `talkBounce`. Extracted JS passes `node --check` on both
+  pages; the bridge/simulator behaviour is untouched.
+- **Dashboard rail:** the desk face's right rail is now titled
+  "Dashboard — agent state" and gained a **Last exchange** readout
+  (updated every turn, text and voice). First render overflowed the
+  480 px stage (footer bottom 572 px) — the rail was compacted (3-column
+  state chips, tighter type/gaps) and re-measured: footer bottom
+  **468 px**, last-exchange bottom 425 px — inside the stage.
+- **Responsive:** the desk face still scales its 1920 × 480 stage to any
+  window; below a 2:1 aspect it now also engages compact mode (rail
+  hidden, pet zone widened). Verified at 800 × 480: compact class on,
+  rail `display: none` (screenshot `assets/screenshot-display-small.png`).
+- **Screenshots re-rendered** from the live pages (Playwright + headless
+  Chromium, same method as §8): `screenshot-display.png` (1920 × 480,
+  two-message live-bridge conversation, new portrait + dashboard rail)
+  and `screenshot-preview.png` (1120 × 860, round portrait in the watch,
+  five state buttons). One layout fix during the shoot: the square
+  portrait pushed the watch bubble into the hint line — pet zone
+  narrowed 62% → 52% and re-measured (bubble bottom 579 px < hint top
+  588 px). `.svg` twins regenerated for both screenshots and for the
+  round + bar size variants the README shows, same base64-raster wrap
+  as §8.
+- Binary assets (`pip-character.png/.webp`, `poses/*.webp`,
+  `sizes/*.png`, `pip-animated.mp4`, screenshot `.png` originals) are
+  committed in the local repo; the snapshot push carries the UTF-8
+  files (the faces and banner embed the pixels, the twins wrap the
+  rest), exactly as with the §8 screenshot originals.

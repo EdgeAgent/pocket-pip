@@ -22,14 +22,40 @@ Inspired by Spencer Ryan's pocket-Jarvis watch build — rebuilt our way, with t
 
 The LESOWN P88 bar (1920 × 480) plugged into the home machine, served by the bridge itself,
 mid-conversation with the live bridge (demo brain). The 🎙 button is push-to-talk voice.
+Left: Pip himself (his pose changes with his state). Right: the dashboard rail —
+state, brain, bridge, voice, last exchange.
 
 ![Pocket Pip desk face on the LESOWN P88 — live bridge, real conversation](assets/screenshot-display.svg)
 
 ## The watch face — the portable body, mirrored in the browser
 
-Exactly what the M5Stack StopWatch firmware draws: same pet, same four states, same replies.
+Exactly what the M5Stack StopWatch firmware draws: same pet, same states, same replies.
 
 ![Pocket Pip watch face preview — Pip on his cloud](assets/screenshot-preview.svg)
+
+## One Pip, every screen
+
+Pip's portrait is one canonical image (Kevin-approved, `assets/pip-character.png`),
+cut for every screen he lives on. The faces swap **poses per state** — idle and
+listening use the portrait, thinking gets its own pose, **typing** (while a reply
+is being produced) gets the head-down-at-the-keyboard pose, and talking waves at
+the camera. The desk face is also a **dashboard**: pose on the left, panel on the
+right — agent state, brain, bridge, voice, and the last exchange. It auto-fits
+any window; on a non-bar screen (aspect < 2:1) it switches to a compact layout
+with the rail hidden and the pet widened, so the same face runs on a small
+~3″ panel today and the 1920 × 480 P88 bar later.
+
+| Variant | File | For |
+|---|---|---|
+| Round 480 × 480 | `assets/sizes/pip-round-watch-480.png` | The StopWatch face (used by the preview) |
+| Round 240 × 240 | `assets/sizes/pip-round-watch-240.png` | Small round displays |
+| Square 480 × 480 | `assets/sizes/pip-small-square-480.png` | Small square panels |
+| Landscape 800 × 480 | `assets/sizes/pip-small-landscape-800x480.png` | Small wide panels |
+| Bar 1920 × 480 | `assets/sizes/pip-bar-p88-1920x480.png` | The LESOWN P88 |
+
+![Pip, round watch variant](assets/sizes/pip-round-watch-480.svg)
+
+![Pip, P88 bar variant](assets/sizes/pip-bar-p88-1920x480.svg)
 
 ---
 
@@ -115,7 +141,7 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
 | `display/` | Desk face — 1920 × 480 kiosk page for the LESOWN P88, with push-to-talk voice (demo mode if the bridge is offline) |
 | `preview/` | Round watch face in the browser — the StopWatch UI, mirrored |
 | `firmware/` | StopWatch firmware (PlatformIO, M5Unified) — Wi-Fi chat, BLE flagged off |
-| `assets/` | Banner + screenshots of the actual surfaces, rendered headlessly from the live pages (`.svg` files wrap the rendered PNG pixels so GitHub displays them; the raw `.png` originals are alongside in the repo) |
+| `assets/` | Banner, the canonical Pip portrait (`pip-character.png` + web copy), per-state poses (`poses/`), per-screen size variants (`sizes/`), an animated clip (`pip-animated.mp4`), and screenshots of the actual surfaces, rendered headlessly from the live pages (`.svg` files wrap the rendered PNG pixels so GitHub displays them; the raw `.png` originals are alongside in the repo) |
 | `docs/` | [`SPEC.md`](docs/SPEC.md) — architecture, transports, security · [`TEST-RUN.md`](docs/TEST-RUN.md) — test receipts |
 
 ## Status — honest version
@@ -130,9 +156,14 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
   path as the zero-install option.
 - The bridge serves both faces itself; a headless browser load confirms
   the desk face reaches the bridge same-origin ("Live bridge").
-- Both web faces are single self-contained files — no external assets,
-  work offline. The screenshots above are renders of the real pages,
-  taken during the test run.
+- Both web faces are single self-contained files — the portrait and all
+  poses are embedded in the page, no external assets, work offline. The
+  screenshots above are renders of the real pages, taken during the
+  test run.
+- The pose set is wired and verified in a headless browser: all five
+  states (idle, listening, thinking, typing, talking) swap to the right
+  pose and animation on both faces, and the desk face's compact mode
+  engages on a small 800 × 480 window (see TEST-RUN §9).
 
 **Not yet:**
 - The voice plumbing was proven with **stub speech tools** — real
@@ -151,4 +182,7 @@ Watch firmware: edit `firmware/src/config.h` (placeholders only in git), then
 ## Design
 
 Edge Agency system — Ink Navy `#060A14`, Gold `#E8B84B`, Teal `#2DD4BF`, Space Grotesk / Inter.
-Pip's look (cloud, sunglasses, black suit, gold tie) is drawn identically in the firmware, the watch preview, and the desk face.
+Pip's look (glossy white head, sunglasses, black suit, gold tie, laptop with the gold P,
+sitting on his cloud) is one canonical portrait — `assets/pip-character.png` — embedded
+in the banner and both web faces, with matching per-state poses in `assets/poses/`.
+The firmware draws its own small rendition of the same character.

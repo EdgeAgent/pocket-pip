@@ -39,6 +39,7 @@ Endpoints:
   GET  /              -> the desk face (display/index.html)
   GET  /display/      -> the desk face, served by the bridge
   GET  /preview/      -> the round watch face, served by the bridge
+  GET  /assets/       -> shared assets (the Pip portrait the faces load)
   GET  /health        -> {"status": "ok", "brain": ..., "voice": {...}}
   GET  /voice/status  -> voice configuration on the bridge
   POST /chat          -> {"message": "..."}  =>  {"reply": "...", ...}
@@ -87,6 +88,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIRS = {
     "/display": os.path.join(ROOT, "display"),
     "/preview": os.path.join(ROOT, "preview"),
+    "/assets": os.path.join(ROOT, "assets"),
 }
 
 SYSTEM_PROMPT = (
@@ -268,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
                 "brain": "ollama" if OLLAMA_URL else "demo",
                 "ollama_model": OLLAMA_MODEL if OLLAMA_URL else None,
                 "voice": voice_status(),
-                "serves": ["/display/", "/preview/"],
+                "serves": ["/display/", "/preview/", "/assets/"],
                 "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             })
         elif path == "/voice/status":
@@ -277,6 +279,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_static("/display", path[len("/display"):])
         elif path == "/preview" or path.startswith("/preview/"):
             self._serve_static("/preview", path[len("/preview"):])
+        elif path.startswith("/assets/"):
+            self._serve_static("/assets", path[len("/assets"):])
         else:
             self._json(404, {"error": "not found"})
 
