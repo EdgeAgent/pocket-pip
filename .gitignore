@@ -1,0 +1,17 @@
+# PlatformIO
+firmware/.pio/
+firmware/.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Secrets — real credentials never enter this repo.
+# firmware/src/config.h ships with PLACEHOLDERS ONLY; keep your filled-in
+# copy out of git.
+firmware/src/config.local.h
+
+# OS / editor
+.DS_Store
+*.swp

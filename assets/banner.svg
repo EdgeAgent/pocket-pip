@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1220"/>
+      <stop offset="1" stop-color="#060A14"/>
+    </linearGradient>
+    <linearGradient id="goldline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E8B84B"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="320" fill="url(#bg)"/>
+  <rect x="0" y="306" width="1280" height="4" fill="url(#goldline)"/>
+
+  <!-- watch -->
+  <circle cx="190" cy="160" r="104" fill="#0d1830" stroke="#E8B84B" stroke-width="3"/>
+  <circle cx="190" cy="160" r="112" fill="none" stroke="#22334f" stroke-width="10"/>
+  <!-- cloud -->
+  <g fill="#DCE8F5">
+    <ellipse cx="148" cy="212" rx="34" ry="14"/>
+    <ellipse cx="190" cy="203" rx="40" ry="18"/>
+    <ellipse cx="232" cy="212" rx="34" ry="14"/>
+    <rect x="118" y="209" width="144" height="12"/>
+  </g>
+  <!-- body -->
+  <rect x="168" y="150" width="44" height="42" rx="9" fill="#0A0A0A"/>
+  <polygon points="184,152 196,152 190,174" fill="#E8B84B"/>
+  <!-- head -->
+  <circle cx="190" cy="118" r="26" fill="#FFCDA0" stroke="#E8B84B" stroke-width="2"/>
+  <rect x="168" y="110" width="19" height="12" rx="4" fill="#0A0A0A"/>
+  <rect x="193" y="110" width="19" height="12" rx="4" fill="#0A0A0A"/>
+  <path d="M 181 130 A 10 8 0 0 0 199 130" fill="none" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- wordmark -->
+  <text x="350" y="152" font-family="'Space Grotesk','Segoe UI',Arial,sans-serif" font-size="72" font-weight="700" letter-spacing="6" fill="#E8EDF5">POCKET <tspan fill="#E8B84B">PIP</tspan></text>
+  <text x="354" y="198" font-family="'Inter','Segoe UI',Arial,sans-serif" font-size="25" fill="#8FA3BF">Your AI agent, on your wrist — thinking back at the house.</text>
+  <text x="354" y="238" font-family="'Inter','Segoe UI',Arial,sans-serif" font-size="19" fill="#2DD4BF">M5Stack StopWatch · ESP32-S3 · Wi-Fi + BLE · Local-first bridge</text>
+</svg>

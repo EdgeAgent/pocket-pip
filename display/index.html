@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Pip — Desk Face (1920×480)</title>
+<style>
+  :root{
+    --navy:#060A14; --glass:#101C32; --gold:#E8B84B; --teal:#2DD4BF; --cyan:#38E0FF;
+    --ink:#E8EDF5; --dim:#8FA3BF; --faint:#54677F;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; background:#02040A; overflow:hidden;}
+  body{
+    font-family:"Space Grotesk","Inter",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* The stage is EXACTLY 1920x480 — the LESOWN P88's native resolution.
+     JS scales it to fit whatever window it's opened in; on the P88 at
+     fullscreen the scale is exactly 1. */
+  #stage{
+    width:1920px; height:480px; flex:0 0 auto; transform-origin:center center;
+    background:radial-gradient(900px 480px at 12% 50%, #12233F 0%, var(--navy) 58%);
+    display:flex; overflow:hidden; position:relative;
+  }
+  #stage::after{content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
+    background:linear-gradient(90deg, var(--gold), var(--teal));}
+
+  /* ---------- left: the pet (480x480) ---------- */
+  #petZone{
+    width:480px; height:480px; flex:0 0 480px; position:relative;
+    display:flex; flex-direction:column; align-items:center;
+    border-right:1px solid rgba(232,184,75,.22);
+    background:radial-gradient(120% 90% at 50% 0%, #0D1830 0%, rgba(6,10,20,0) 65%);
+  }
+  #petStatus{
+    margin-top:34px; font-size:17px; letter-spacing:.38em; font-weight:600;
+    color:var(--teal); text-transform:uppercase; min-height:22px; text-indent:.38em;
+  }
+  #dots{display:flex; gap:9px; height:14px; margin-top:10px; opacity:0; transition:opacity .25s;}
+  #dots span{width:10px; height:10px; border-radius:50%; background:var(--gold);}
+  #stage.thinking #dots{opacity:1;}
+  #stage.thinking #dots span{animation:dotb 1s infinite;}
+  #stage.thinking #dots span:nth-child(2){animation-delay:.15s;}
+  #stage.thinking #dots span:nth-child(3){animation-delay:.3s;}
+  @keyframes dotb{0%,100%{transform:translateY(0); opacity:.4;} 50%{transform:translateY(-6px); opacity:1;}}
+
+  #petWrap{position:relative; width:340px; margin-top:6px;}
+  #pet{width:100%; display:block; transform-origin:50% 80%;}
+  #stage.idle #pet{animation:bob 2.6s ease-in-out infinite;}
+  #stage.listening #pet{animation:lean 1.1s ease-in-out infinite;}
+  #stage.talking #pet{animation:bob .55s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0);} 50%{transform:translateY(-11px);}}
+  @keyframes lean{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-3.5deg) translateY(-4px);}}
+  #rings{position:absolute; inset:-12% -9%; pointer-events:none; opacity:0;}
+  #stage.listening #rings{opacity:1;}
+  #rings i{position:absolute; inset:0; border-radius:50%; border:2px solid rgba(45,212,191,.65); animation:ring 1.6s ease-out infinite;}
+  #rings i:nth-child(2){animation-delay:.55s;}
+  @keyframes ring{0%{transform:scale(.72); opacity:.9;} 100%{transform:scale(1.05); opacity:0;}}
+  #petCaption{
+    margin-top:10px; color:var(--faint); font-size:13px; letter-spacing:.24em; text-transform:uppercase;
+  }
+
+  /* ---------- right: console (1440x480) ---------- */
+  #console{flex:1; display:flex; flex-direction:column; padding:16px 30px 12px 30px; min-width:0;}
+  #topbar{display:flex; align-items:baseline; gap:22px; padding-bottom:10px; border-bottom:1px solid rgba(143,163,191,.18);}
+  #wordmark{font-size:27px; font-weight:700; letter-spacing:.16em; white-space:nowrap;}
+  #wordmark .gold{color:var(--gold);}
+  #wordmark small{font-size:13px; letter-spacing:.3em; color:var(--dim); font-weight:600; margin-left:14px;}
+  #topRight{margin-left:auto; display:flex; align-items:center; gap:18px;}
+  #clock{font-size:27px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums;}
+  #clock small{display:block; font-size:11px; letter-spacing:.26em; color:var(--faint); text-align:right; text-transform:uppercase;}
+  .badge{
+    font-size:13px; font-weight:700; letter-spacing:.18em; padding:8px 14px; border-radius:999px;
+    border:1px solid var(--faint); color:var(--dim); white-space:nowrap; text-transform:uppercase;
+  }
+  .badge.live{border-color:var(--teal); color:var(--teal); box-shadow:0 0 14px rgba(45,212,191,.25);}
+  .badge.demo{border-color:var(--gold); color:var(--gold);}
+
+  #mainRow{flex:1; display:flex; gap:26px; min-height:0; padding-top:12px;}
+  #chatCol{flex:1; display:flex; flex-direction:column; min-width:0;}
+  #log{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-right:6px; scrollbar-width:thin;}
+  .msg{max-width:92%; padding:13px 18px; border-radius:16px; font-size:21px; line-height:1.42; animation:pop .3s ease-out;}
+  @keyframes pop{from{transform:scale(.97); opacity:.3;} to{transform:scale(1); opacity:1;}}
+  .msg .who{display:block; font-size:11px; letter-spacing:.22em; color:var(--dim); margin-bottom:4px; text-transform:uppercase;}
+  .msg.you{align-self:flex-end; background:#1D3A5F; border-bottom-right-radius:4px;}
+  .msg.pip{align-self:flex-start; background:#132742; border:1px solid rgba(45,212,191,.35); border-bottom-left-radius:4px;}
+  .msg.pip .who{color:var(--teal);}
+  #emptyNote{color:var(--dim); font-size:18px; line-height:1.55; max-width:900px;}
+
+  #rail{width:308px; flex:0 0 308px; border-left:1px solid rgba(143,163,191,.18); padding-left:24px; display:flex; flex-direction:column; gap:10px; overflow:hidden;}
+  .railTitle{font-size:12px; letter-spacing:.3em; color:var(--gold); text-transform:uppercase; font-weight:700;}
+  .chips{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  .chip{
+    display:flex; align-items:center; gap:9px; font-size:13.5px; letter-spacing:.12em;
+    color:var(--faint); padding:6px 10px; border-radius:10px; border:1px solid transparent; text-transform:uppercase;
+  }
+  .chip i{width:9px; height:9px; border-radius:50%; background:#33465F; flex:0 0 auto;}
+  .chip.on{color:var(--ink); border-color:rgba(45,212,191,.4); background:rgba(45,212,191,.07);}
+  .chip.on i{background:var(--teal); box-shadow:0 0 10px rgba(45,212,191,.8);}
+  .railFact{font-size:13px; color:var(--dim); line-height:1.45;}
+  .railFact b{color:var(--ink); font-weight:600;}
+  #railFoot{margin-top:auto; font-size:11.5px; color:var(--faint); line-height:1.5;}
+
+  #inputRow{display:flex; gap:12px; padding-top:12px;}
+  #input{
+    flex:1; font:inherit; font-size:19px; color:var(--ink);
+    background:rgba(16,28,50,.85); border:1px solid rgba(143,163,191,.35);
+    border-radius:12px; padding:11px 18px; outline:none;
+  }
+  #input:focus{border-color:var(--teal);}
+  #sendBtn{
+    font:inherit; font-size:17px; font-weight:700; letter-spacing:.06em; cursor:pointer;
+    background:var(--gold); color:#241A02; border:1px solid var(--gold); border-radius:12px; padding:0 30px;
+  }
+  #sendBtn:hover{background:#F2C86A;}
+  #sendBtn:disabled{opacity:.45; cursor:wait;}
+  #micBtn{
+    font:inherit; font-size:21px; cursor:pointer; width:60px; flex:0 0 60px;
+    background:rgba(16,28,50,.85); color:var(--ink);
+    border:1px solid rgba(143,163,191,.35); border-radius:12px;
+  }
+  #micBtn:hover{border-color:var(--teal);}
+  #micBtn.recording{border-color:#FF5A5A; color:#FF5A5A; box-shadow:0 0 16px rgba(255,90,90,.35); animation:micpulse 1s infinite;}
+  @keyframes micpulse{0%,100%{transform:scale(1);} 50%{transform:scale(1.08);}}
+  #micBtn:disabled{opacity:.45; cursor:wait;}
+  .note{
+    align-self:center; max-width:92%; font-size:14.5px; line-height:1.45; color:var(--gold);
+    background:rgba(232,184,75,.07); border:1px dashed rgba(232,184,75,.4);
+    padding:9px 14px; border-radius:10px; animation:pop .3s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage" class="idle">
+  <!-- LEFT: Pip -->
+  <div id="petZone">
+    <div id="petStatus">Pocket Pip</div>
+    <div id="dots"><span></span><span></span><span></span></div>
+    <div id="petWrap">
+      <div id="rings"><i></i><i></i></div>
+      <svg id="pet" viewBox="0 0 300 250" role="img" aria-label="Pip on his cloud">
+        <g fill="#DCE8F5">
+          <ellipse cx="78" cy="212" rx="58" ry="24"/>
+          <ellipse cx="150" cy="198" rx="66" ry="30"/>
+          <ellipse cx="222" cy="212" rx="58" ry="24"/>
+          <rect x="34" y="208" width="232" height="20"/>
+        </g>
+        <rect x="114" y="128" width="72" height="66" rx="15" fill="#0A0A0A"/>
+        <polygon points="141,130 159,130 150,164" fill="#E8B84B"/>
+        <circle cx="150" cy="168" r="4" fill="#E8B84B"/>
+        <circle cx="150" cy="88" r="42" fill="#FFCDA0" stroke="#E8B84B" stroke-width="2.5"/>
+        <rect x="114" y="74" width="31" height="19" rx="6" fill="#0A0A0A"/>
+        <rect x="155" y="74" width="31" height="19" rx="6" fill="#0A0A0A"/>
+        <rect x="145" y="80" width="10" height="4" fill="#0A0A0A"/>
+        <path id="mouthSmile" d="M 136 104 A 15 13 0 0 0 164 104" fill="none" stroke="#0A0A0A" stroke-width="3" stroke-linecap="round"/>
+        <ellipse id="mouthOpen" cx="150" cy="107" rx="6.5" ry="8" fill="#0A0A0A" style="display:none"/>
+        <rect id="mouthFlat" x="141" y="105" width="18" height="3.5" rx="1.75" fill="#0A0A0A" style="display:none"/>
+      </svg>
+    </div>
+    <div id="petCaption">On his cloud · At home</div>
+  </div>
+
+  <!-- RIGHT: console -->
+  <div id="console">
+    <div id="topbar">
+      <div id="wordmark">POCKET <span class="gold">PIP</span><small>DESK FACE</small></div>
+      <div id="topRight">
+        <span class="badge demo" id="connBadge">Checking bridge…</span>
+        <div id="clock">--:--<small>Home base</small></div>
+      </div>
+    </div>
+
+    <div id="mainRow">
+      <div id="chatCol">
+        <div id="log">
+          <p id="emptyNote">Pip lives here. Type below and hit Send — or tap the mic and talk to him.
+          If the bridge is running on this machine he answers for real; if not, the built-in
+          demo brain keeps him talking.</p>
+        </div>
+        <div id="inputRow">
+          <button id="micBtn" title="Push to talk — tap, speak, tap again to stop">🎙</button>
+          <input id="input" type="text" placeholder="Say something to Pip…" autocomplete="off">
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+
+      <div id="rail">
+        <div>
+          <div class="railTitle">Agent state</div>
+          <div class="chips" style="margin-top:10px;">
+            <div class="chip on" data-chip="idle"><i></i>Idle</div>
+            <div class="chip" data-chip="listening"><i></i>Listening</div>
+            <div class="chip" data-chip="thinking"><i></i>Thinking</div>
+            <div class="chip" data-chip="talking"><i></i>Talking</div>
+          </div>
+        </div>
+        <div>
+          <div class="railTitle">Brain</div>
+          <p class="railFact" id="brainFact" style="margin-top:8px;">—</p>
+        </div>
+        <div>
+          <div class="railTitle">Bridge</div>
+          <p class="railFact" id="bridgeFact" style="margin-top:8px;">—</p>
+        </div>
+        <div>
+          <div class="railTitle">Voice</div>
+          <p class="railFact" id="voiceFact" style="margin-top:8px;">—</p>
+        </div>
+        <p id="railFoot">Local-first: the brain runs on the home server — nothing leaves the house.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ------------------------------------------------------------------
+  // Pocket Pip — Desk Face (LESOWN P88, 1920x480)
+  // Talks to the Pocket Pip bridge: GET /health, POST /chat, POST /voice.
+  // Best opened FROM the bridge (http://localhost:8765/display/) — same
+  // origin, no CORS friction. If the bridge can't be reached (e.g. you
+  // opened this file directly), a built-in demo brain — mirroring
+  // bridge.py's demo brain, line for line — keeps the face alive.
+  // Override with ?bridge=<url>&token=<t>.
+  //
+  // Voice (push-to-talk, the mic button): two honest paths —
+  //   (a) zero-install browser speech: SpeechRecognition for ears,
+  //       speechSynthesis for the mouth (Chrome/Edge);
+  //   (b) bridge-local: the bridge runs whisper (ears) + piper (mouth)
+  //       on the host when POCKETPIP_WHISPER_CMD / POCKETPIP_PIPER_CMD
+  //       are set; the page records audio and POSTs it to /voice.
+  // If neither path exists, the mic button says so in the chat log —
+  // nothing is faked. The P88 bar has no mic or speaker: voice runs
+  // through the host computer's mic and speakers.
+  // ------------------------------------------------------------------
+  var params = new URLSearchParams(location.search);
+  var BRIDGE = (params.get('bridge') ||
+    (location.protocol.indexOf('http') === 0 ? location.origin : 'http://localhost:8765')).replace(/\/$/, '');
+  var TOKEN = params.get('token') || 'dev-token-change-me';
+  var servedByBridge = location.protocol.indexOf('http') === 0 && BRIDGE === location.origin;
+
+  var stage = document.getElementById('stage'),
+      petStatus = document.getElementById('petStatus'),
+      log = document.getElementById('log'),
+      input = document.getElementById('input'),
+      sendBtn = document.getElementById('sendBtn'),
+      micBtn = document.getElementById('micBtn'),
+      badge = document.getElementById('connBadge'),
+      brainFact = document.getElementById('brainFact'),
+      bridgeFact = document.getElementById('bridgeFact'),
+      voiceFact = document.getElementById('voiceFact'),
+      mouths = { idle:'mouthSmile', listening:'mouthSmile', thinking:'mouthFlat', talking:'mouthOpen' },
+      labels = { idle:'Pocket Pip', listening:'Listening', thinking:'Thinking', talking:'Pip says' },
+      live = false, brainName = 'demo', busy = false, lastInteract = Date.now();
+
+  // Fit the exact 1920x480 stage into any window (scale = 1 on the P88).
+  function fit() {
+    var s = Math.min(window.innerWidth / 1920, window.innerHeight / 480);
+    stage.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit); fit();
+
+  // Clock
+  function tickClock() {
+    var d = new Date(), h = d.getHours(), ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    var m = ('0' + d.getMinutes()).slice(-2), s = ('0' + d.getSeconds()).slice(-2);
+    document.getElementById('clock').innerHTML =
+      h + ':' + m + '<span style="font-size:16px;color:var(--dim)">:' + s + ' ' + ap + '</span><small>Home base</small>';
+  }
+  tickClock(); setInterval(tickClock, 1000);
+
+  function setState(state) {
+    stage.className = state;
+    petStatus.textContent = labels[state];
+    Object.keys(mouths).forEach(function (k) {
+      document.getElementById(mouths[k]).style.display = (k === state) ? '' : 'none';
+    });
+    document.querySelectorAll('.chip').forEach(function (c) {
+      c.classList.toggle('on', c.dataset.chip === state);
+    });
+  }
+
+  function addMsg(who, text) {
+    var note = document.getElementById('emptyNote');
+    if (note) note.remove();
+    var d = document.createElement('div');
+    d.className = 'msg ' + who;
+    var w = document.createElement('span');
+    w.className = 'who'; w.textContent = who === 'you' ? 'You' : 'Pip';
+    d.appendChild(w);
+    d.appendChild(document.createTextNode(text));
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // System note (dashed gold) — used for honest voice-unavailable messages.
+  function addNote(text) {
+    var note = document.getElementById('emptyNote');
+    if (note) note.remove();
+    var d = document.createElement('div');
+    d.className = 'note';
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // Demo brain — mirrors bridge/bridge.py demo_brain exactly.
+  function homeTime() {
+    var d = new Date(), h = d.getHours(), ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    var m = ('0' + d.getMinutes()).slice(-2);
+    return "It's " + h + ":" + m + " " + ap + " here at home base.";
+  }
+  function demoBrain(message) {
+    var m = message.trim().toLowerCase();
+    if (!m) return "I'm listening — say the word.";
+    if (/(hello|hi|hey)/.test(m)) return 'Hey Kevin. Pip here, on the cloud, ready when you are.';
+    if (m.indexOf('time') >= 0) return homeTime();
+    if (m.indexOf('weather') >= 0) return "Demo brain here — hook me to Ollama and I'll check for real. (London, ON: probably cold.)";
+    if (m.indexOf('who are you') >= 0 || m.indexOf('your name') >= 0)
+      return "I'm Pip — your pocket agent. I live on this watch and think back at the house.";
+    if (m.indexOf('robot orchestra') >= 0) return 'Robot Orchestra is safe on the home server. Roboto says hi.';
+    if (m.indexOf('thank') >= 0) return "Anytime. That's what I'm here for.";
+    return 'Got it: "' + message.trim() + '". Demo brain received it loud and clear — wire up Ollama for real answers.';
+  }
+
+  function setConn() {
+    badge.textContent = live ? '● Live bridge' : '● Demo mode';
+    badge.className = 'badge ' + (live ? 'live' : 'demo');
+    brainFact.innerHTML = live
+      ? 'Bridge brain: <b>' + brainName + '</b>'
+      : 'Built-in <b>demo brain</b> (bridge offline)';
+    bridgeFact.innerHTML = '<b>' + BRIDGE + '</b>' +
+      (live
+        ? ' — health OK.' + (servedByBridge ? ' Page served by the bridge itself: same origin, no CORS friction.' : '')
+        : ' not reachable — demo brain is driving. Start bridge/bridge.py; it serves this page at /display/.');
+  }
+
+  async function probe() {
+    try {
+      var ctl = new AbortController();
+      var t = setTimeout(function () { ctl.abort(); }, 2500);
+      var r = await fetch(BRIDGE + '/health', { signal: ctl.signal });
+      clearTimeout(t);
+      if (!r.ok) throw new Error('bad health');
+      var h = await r.json();
+      live = true; brainName = h.brain || 'demo';
+    } catch (e) { live = false; }
+    setConn();
+    probeVoice();
+  }
+
+  async function askBridge(message) {
+    var r = await fetch(BRIDGE + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Pocket-Token': TOKEN },
+      body: JSON.stringify({ message: message })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var data = await r.json();
+    return data.reply;
+  }
+
+  // ------------------------------------------------------------------
+  // Voice channel — push-to-talk.
+  // Ears: browser SpeechRecognition if present; else MediaRecorder ->
+  // POST /voice (bridge whisper), if the bridge has STT configured.
+  // Mouth: bridge piper audio if /voice returns it; else the browser's
+  // speechSynthesis. Pip's pose: listening while recording, talking
+  // while the reply plays.
+  // ------------------------------------------------------------------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var bridgeVoice = { stt_configured: false, tts_configured: false };
+  var recog = null, recording = false, mediaRec = null, mediaChunks = [], mediaStream = null;
+
+  async function probeVoice() {
+    if (live) {
+      try {
+        var r = await fetch(BRIDGE + '/voice/status');
+        if (r.ok) bridgeVoice = (await r.json()).voice || bridgeVoice;
+      } catch (e) { /* keep defaults; updateVoiceFact stays honest */ }
+    }
+    updateVoiceFact();
+  }
+
+  function updateVoiceFact() {
+    var ears = [], mouth = [];
+    if (SR) ears.push('browser speech');
+    if (bridgeVoice.stt_configured) ears.push('bridge whisper');
+    if (window.speechSynthesis) mouth.push('browser voice');
+    if (bridgeVoice.tts_configured) mouth.push('bridge piper');
+    if (ears.length || mouth.length) {
+      voiceFact.innerHTML = 'Ears: <b>' + (ears.join(' + ') || 'none') + '</b> · ' +
+        'Mouth: <b>' + (mouth.join(' + ') || 'none') + '</b><br>' +
+        'No mic or speaker on the bar — the host computer\u2019s are used.';
+    } else {
+      voiceFact.innerHTML = 'No speech path found — set <b>POCKETPIP_WHISPER_CMD</b> / ' +
+        '<b>POCKETPIP_PIPER_CMD</b> on the bridge, or use Chrome/Edge for browser speech.';
+    }
+  }
+
+  function speakReply(text, audioB64) {
+    return new Promise(function (resolve) {
+      var done = false;
+      function finish() { if (!done) { done = true; resolve(); } }
+      if (audioB64) {
+        try {
+          var audio = new Audio('data:audio/wav;base64,' + audioB64);
+          audio.onended = finish; audio.onerror = finish;
+          setTimeout(finish, Math.max(3000, text.length * 120));
+          var p = audio.play();
+          if (p && p.catch) p.catch(finish);
+          return;
+        } catch (e) { /* fall through to synthesis */ }
+      }
+      if (window.speechSynthesis) {
+        try {
+          var u = new SpeechSynthesisUtterance(text);
+          u.onend = finish; u.onerror = finish;
+          setTimeout(finish, Math.max(3000, text.length * 140));
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+          return;
+        } catch (e) { /* fall through */ }
+      }
+      setTimeout(finish, 1600);
+    });
+  }
+
+  function blobToB64(blob) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result).split(',')[1]); };
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  // A spoken turn: transcript (or recorded audio) -> /voice -> spoken reply.
+  async function voiceSend(transcript, audioPayload) {
+    if (busy) return;
+    busy = true; sendBtn.disabled = true; micBtn.disabled = true; lastInteract = Date.now();
+    if (transcript) addMsg('you', transcript);
+    setState('thinking');
+    var reply = null, audioB64 = null, note = null;
+    if (live) {
+      try {
+        var r = await fetch(BRIDGE + '/voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Pocket-Token': TOKEN },
+          body: JSON.stringify(audioPayload || { text: transcript })
+        });
+        var data = await r.json().catch(function () { return {}; });
+        if (r.ok) {
+          if (audioPayload && data.transcript) addMsg('you', data.transcript);
+          reply = data.reply; audioB64 = data.audio_base64 || null;
+        } else if (data.reply) {
+          reply = data.reply; note = data.error || null;  // 503: text reply, no audio — say so
+        } else if (data.error) {
+          note = data.error;
+        }
+      } catch (e) { /* bridge died mid-turn; demo fallback below */ }
+    }
+    if (reply === null && !audioPayload && transcript !== null) {
+      await wait(800);
+      reply = demoBrain(transcript);
+    }
+    if (note) addNote(note);
+    if (reply !== null) {
+      addMsg('pip', reply);
+      setState('talking');
+      await speakReply(reply, audioB64);
+    }
+    setState('idle');
+    busy = false; sendBtn.disabled = false; micBtn.disabled = false; lastInteract = Date.now();
+  }
+
+  function stopListeningUI() {
+    recording = false;
+    micBtn.classList.remove('recording');
+    if (stage.className === 'listening') setState('idle');
+  }
+
+  async function startListening() {
+    if (busy || recording) return;
+    lastInteract = Date.now();
+    if (SR) {
+      try {
+        recog = new SR();
+        recog.lang = 'en-US'; recog.interimResults = false; recog.maxAlternatives = 1;
+        var got = false;
+        recog.onresult = function (ev) {
+          got = true;
+          var text = ev.results[0][0].transcript;
+          stopListeningUI();
+          voiceSend(text, null);
+        };
+        recog.onerror = function () {
+          stopListeningUI();
+          if (!got) addNote('Speech recognition hiccup — tap the mic and try again, or type.');
+        };
+        recog.onend = function () { if (recording && !got) stopListeningUI(); };
+        recording = true; micBtn.classList.add('recording'); setState('listening');
+        recog.start();
+      } catch (e) {
+        addNote('Speech recognition is not available in this browser.');
+      }
+      return;
+    }
+    if (window.MediaRecorder && bridgeVoice.stt_configured && navigator.mediaDevices) {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaChunks = [];
+        mediaRec = new MediaRecorder(mediaStream);
+        mediaRec.ondataavailable = function (e) { if (e.data.size) mediaChunks.push(e.data); };
+        mediaRec.onstop = onRecordingStop;
+        mediaRec.start();
+        recording = true; micBtn.classList.add('recording'); setState('listening');
+      } catch (e) {
+        addNote('Microphone access was denied — voice needs mic permission in the browser.');
+      }
+      return;
+    }
+    addNote('Voice is not available here: this browser has no speech recognition, and the bridge ' +
+      'reports no speech-to-text configured. Set POCKETPIP_WHISPER_CMD and POCKETPIP_PIPER_CMD on ' +
+      'the bridge host — or open this page in Chrome/Edge for the zero-install browser speech path.');
+  }
+
+  function stopListening() {
+    if (!recording) return;
+    if (recog) { try { recog.stop(); } catch (e) {} }
+    if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
+  }
+
+  async function onRecordingStop() {
+    stopListeningUI();
+    if (mediaStream) { mediaStream.getTracks().forEach(function (t) { t.stop(); }); mediaStream = null; }
+    if (!mediaChunks.length) return;
+    var blob = new Blob(mediaChunks, { type: (mediaRec && mediaRec.mimeType) || 'audio/webm' });
+    var b64 = await blobToB64(blob);
+    voiceSend(null, { audio_base64: b64, audio_mime: blob.type || 'audio/webm' });
+  }
+
+  micBtn.addEventListener('click', function () {
+    if (recording) stopListening(); else startListening();
+  });
+
+  async function send(message) {
+    if (busy || !message.trim()) return;
+    busy = true; sendBtn.disabled = true; lastInteract = Date.now();
+    addMsg('you', message);
+    setState('listening');
+    await wait(650);
+    setState('thinking');
+    var reply;
+    if (live) {
+      try { reply = await askBridge(message); }
+      catch (e) { live = false; setConn(); reply = demoBrain(message); await wait(700); }
+    } else {
+      await wait(900 + Math.random() * 600);
+      reply = demoBrain(message);
+    }
+    addMsg('pip', reply);
+    setState('talking');
+    await wait(2300);
+    setState('idle');
+    busy = false; sendBtn.disabled = false; lastInteract = Date.now();
+    input.focus();
+  }
+
+  sendBtn.addEventListener('click', function () { var v = input.value; input.value = ''; send(v); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { var v = input.value; input.value = ''; send(v); }
+  });
+  input.addEventListener('input', function () { lastInteract = Date.now(); });
+
+  // Ambient demo conversation: in demo mode, if nobody has interacted for
+  // 45s, Pip runs the simulator's scripted exchange so the desk face is
+  // visibly alive on its own. Any interaction resets the timer.
+  var AMBIENT = [
+    'Hey Pip, are you there?',
+    'What time is it at home base?',
+    'Check on Robot Orchestra for me.'
+  ], ambIdx = 0;
+  setInterval(function () {
+    if (!live && !busy && Date.now() - lastInteract > 45000) {
+      send(AMBIENT[ambIdx % AMBIENT.length]); ambIdx++;
+    }
+  }, 5000);
+
+  setState('idle');
+  updateVoiceFact();
+  probe();
+</script>
+</body>
+</html>

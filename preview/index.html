@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Pip — Watch Preview</title>
+<style>
+  :root{
+    --navy:#060A14; --navy2:#0B1220; --glass:#101C32;
+    --gold:#E8B84B; --teal:#2DD4BF; --cyan:#38E0FF;
+    --ink:#E8EDF5; --dim:#8FA3BF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:radial-gradient(1200px 800px at 50% -10%, #12233f 0%, var(--navy) 55%) fixed, var(--navy);
+    color:var(--ink);
+    font-family:"Space Grotesk","Inter",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:36px 18px 60px;
+  }
+  header{text-align:center; margin-bottom:26px;}
+  header h1{font-size:34px; letter-spacing:.14em; font-weight:700;}
+  header h1 .gold{color:var(--gold);}
+  header p{color:var(--dim); margin-top:8px; font-size:15px; max-width:560px; line-height:1.5;}
+  .stage{display:flex; gap:34px; flex-wrap:wrap; justify-content:center; align-items:flex-start; width:100%; max-width:1080px;}
+
+  /* ---------- the watch ---------- */
+  .watch-wrap{display:flex; flex-direction:column; align-items:center; gap:16px;}
+  .watch{
+    width:min(78vw,466px); height:min(78vw,466px); border-radius:50%;
+    background:linear-gradient(145deg,#1a2436,#05080f);
+    padding:14px; position:relative;
+    box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 2px 3px rgba(255,255,255,.08);
+  }
+  .watch::before{ /* gold bezel ring */
+    content:""; position:absolute; inset:5px; border-radius:50%;
+    border:2px solid rgba(232,184,75,.75); pointer-events:none;
+  }
+  .watch::after{ /* side button */
+    content:""; position:absolute; right:-7px; top:50%; width:8px; height:56px;
+    transform:translateY(-50%); border-radius:4px;
+    background:linear-gradient(180deg,var(--gold),#9a742a);
+  }
+  .screen{
+    width:100%; height:100%; border-radius:50%; overflow:hidden; position:relative;
+    background:radial-gradient(120% 90% at 50% 0%, #0d1830 0%, var(--navy) 62%);
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .status{
+    margin-top:9%; font-size:13px; letter-spacing:.34em; color:var(--teal);
+    font-weight:600; text-transform:uppercase; min-height:18px;
+  }
+  .dots{display:flex; gap:7px; height:12px; margin-top:6px; opacity:0; transition:opacity .25s;}
+  .dots span{width:8px; height:8px; border-radius:50%; background:var(--gold);}
+  .screen.thinking .dots{opacity:1;}
+  .screen.thinking .dots span{animation:dotb 1s infinite;}
+  .screen.thinking .dots span:nth-child(2){animation-delay:.15s;}
+  .screen.thinking .dots span:nth-child(3){animation-delay:.3s;}
+  @keyframes dotb{0%,100%{transform:translateY(0); opacity:.4;} 50%{transform:translateY(-5px); opacity:1;}}
+
+  .pet-zone{position:relative; width:62%; margin-top:2%;}
+  .pet{width:100%; display:block; transform-origin:50% 80%;}
+  .screen.idle .pet{animation:bob 2.6s ease-in-out infinite;}
+  .screen.listening .pet{animation:lean 1.1s ease-in-out infinite;}
+  .screen.talking .pet{animation:bob .55s ease-in-out infinite;}
+  .screen.thinking .pet{animation:none;}
+  @keyframes bob{0%,100%{transform:translateY(0);} 50%{transform:translateY(-9px);}}
+  @keyframes lean{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-3.5deg) translateY(-3px);}}
+
+  .listen-rings{position:absolute; inset:-14% -10%; pointer-events:none; opacity:0;}
+  .screen.listening .listen-rings{opacity:1;}
+  .listen-rings i{
+    position:absolute; inset:0; border-radius:50%; border:2px solid rgba(45,212,191,.65);
+    animation:ring 1.6s ease-out infinite;
+  }
+  .listen-rings i:nth-child(2){animation-delay:.55s;}
+  @keyframes ring{0%{transform:scale(.72); opacity:.9;} 100%{transform:scale(1.05); opacity:0;}}
+
+  .bubble{
+    margin-top:4%; width:76%; min-height:64px; text-align:center;
+    color:var(--ink); font-size:15.5px; line-height:1.45;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .bubble .txt{transition:opacity .3s;}
+  .screen.talking .bubble .txt{animation:pop .35s ease-out;}
+  @keyframes pop{from{transform:scale(.94); opacity:.3;} to{transform:scale(1); opacity:1;}}
+  .hint{position:absolute; bottom:6.5%; font-size:10.5px; letter-spacing:.22em; color:#5b6f8c; text-transform:uppercase;}
+
+  /* ---------- controls + log ---------- */
+  .panel{
+    background:rgba(16,28,50,.72); border:1px solid rgba(232,184,75,.25);
+    border-radius:16px; padding:20px; width:min(92vw,430px);
+    backdrop-filter:blur(6px);
+  }
+  .panel h2{font-size:13px; letter-spacing:.26em; color:var(--gold); text-transform:uppercase; margin-bottom:12px;}
+  .btnrow{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;}
+  button{
+    font:inherit; font-size:13.5px; cursor:pointer; border-radius:999px;
+    padding:8px 15px; border:1px solid rgba(143,163,191,.4);
+    background:transparent; color:var(--ink); transition:all .15s;
+  }
+  button:hover{border-color:var(--teal); color:var(--teal);}
+  button.active{background:var(--teal); color:#04241e; border-color:var(--teal); font-weight:700;}
+  button.primary{background:var(--gold); color:#241a02; border-color:var(--gold); font-weight:700; width:100%; padding:11px;}
+  button.primary:hover{background:#f2c86a; color:#241a02;}
+  button:disabled{opacity:.45; cursor:wait;}
+  .log{display:flex; flex-direction:column; gap:9px; max-height:330px; overflow-y:auto; padding-right:2px;}
+  .msg{max-width:88%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; animation:pop .3s ease-out;}
+  .msg.you{align-self:flex-end; background:#1d3a5f; border-bottom-right-radius:4px;}
+  .msg.pip{align-self:flex-start; background:#132742; border:1px solid rgba(45,212,191,.35); border-bottom-left-radius:4px;}
+  .msg .who{display:block; font-size:10px; letter-spacing:.18em; color:var(--dim); margin-bottom:3px; text-transform:uppercase;}
+  .msg.pip .who{color:var(--teal);}
+  .empty{color:var(--dim); font-size:13.5px; line-height:1.5;}
+  footer{margin-top:34px; color:#54677f; font-size:12.5px; text-align:center; max-width:640px; line-height:1.6;}
+  footer b{color:var(--dim);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>POCKET <span class="gold">PIP</span></h1>
+  <p>A pocket-sized Pip on his cloud — the watch face preview. This is exactly what the
+     M5Stack StopWatch firmware draws: same pet, same states, same replies as the live bridge test.</p>
+</header>
+
+<div class="stage">
+  <div class="watch-wrap">
+    <div class="watch">
+      <div class="screen idle" id="screen">
+        <div class="status" id="status">Pocket Pip</div>
+        <div class="dots"><span></span><span></span><span></span></div>
+
+        <div class="pet-zone">
+          <div class="listen-rings"><i></i><i></i></div>
+          <!-- Pip: round head, sunglasses, black suit, gold tie, on his cloud -->
+          <svg class="pet" viewBox="0 0 300 250" role="img" aria-label="Pip on his cloud">
+            <!-- cloud -->
+            <g fill="#DCE8F5">
+              <ellipse cx="78" cy="212" rx="58" ry="24"/>
+              <ellipse cx="150" cy="198" rx="66" ry="30"/>
+              <ellipse cx="222" cy="212" rx="58" ry="24"/>
+              <rect x="34" y="208" width="232" height="20"/>
+            </g>
+            <!-- body / suit -->
+            <rect x="114" y="128" width="72" height="66" rx="15" fill="#0A0A0A"/>
+            <polygon points="141,130 159,130 150,164" fill="#E8B84B"/>
+            <circle cx="150" cy="168" r="4" fill="#E8B84B"/>
+            <!-- head -->
+            <circle cx="150" cy="88" r="42" fill="#FFCDA0" stroke="#E8B84B" stroke-width="2.5"/>
+            <!-- sunglasses -->
+            <rect x="114" y="74" width="31" height="19" rx="6" fill="#0A0A0A"/>
+            <rect x="155" y="74" width="31" height="19" rx="6" fill="#0A0A0A"/>
+            <rect x="145" y="80" width="10" height="4" fill="#0A0A0A"/>
+            <!-- mouths, one per state -->
+            <path id="mouth-smile" d="M 136 104 A 15 13 0 0 0 164 104" fill="none" stroke="#0A0A0A" stroke-width="3" stroke-linecap="round"/>
+            <ellipse id="mouth-open" cx="150" cy="107" rx="6.5" ry="8" fill="#0A0A0A" style="display:none"/>
+            <rect id="mouth-flat" x="141" y="105" width="18" height="3.5" rx="1.75" fill="#0A0A0A" style="display:none"/>
+          </svg>
+        </div>
+
+        <div class="bubble"><span class="txt" id="bubbleText">Tap “Run sample chat” — or press a state.</span></div>
+        <div class="hint">Wi-Fi · Bridge at home</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Pet states</h2>
+    <div class="btnrow" id="stateBtns">
+      <button data-state="idle" class="active">Idle</button>
+      <button data-state="listening">Listening</button>
+      <button data-state="thinking">Thinking</button>
+      <button data-state="talking">Talking</button>
+    </div>
+    <h2>Sample chat (live bridge script)</h2>
+    <div class="btnrow">
+      <button class="primary" id="runBtn">▶&nbsp; Run sample chat</button>
+    </div>
+    <div class="log" id="log">
+      <p class="empty">The exchange on the left in the real test: the simulator sent these three
+      lines to the bridge on the home server, and Pip answered. Press run to watch the watch do it.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <b>Preview only.</b> The pet, states and replies mirror the firmware (firmware/src/main.cpp) and the
+  bridge demo brain. Real voice capture is on the roadmap — today the watch cycles scripted lines so the
+  whole loop can be tested the day the hardware lands. Design: Edge Agency — Ink Navy, Gold, Teal.
+</footer>
+
+<script>
+  var screen = document.getElementById('screen'),
+      statusEl = document.getElementById('status'),
+      bubble = document.getElementById('bubbleText'),
+      log = document.getElementById('log'),
+      runBtn = document.getElementById('runBtn'),
+      mouths = {
+        idle: 'mouth-smile', listening: 'mouth-smile',
+        thinking: 'mouth-flat', talking: 'mouth-open', offline: 'mouth-flat'
+      },
+      labels = {
+        idle: 'Pocket Pip', listening: 'Listening',
+        thinking: 'Thinking', talking: 'Pip says', offline: 'No Wi-Fi'
+      };
+
+  function setState(state, text) {
+    screen.className = 'screen ' + state;
+    statusEl.textContent = labels[state] || state;
+    Object.keys(mouths).forEach(function (k) {
+      document.getElementById(mouths[k]).style.display = (k === state) ? '' : 'none';
+    });
+    if (typeof text === 'string') bubble.textContent = text;
+    document.querySelectorAll('#stateBtns button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.state === state);
+    });
+  }
+
+  document.querySelectorAll('#stateBtns button').forEach(function (b) {
+    b.addEventListener('click', function () { setState(b.dataset.state); });
+  });
+
+  function addMsg(who, text) {
+    var d = document.createElement('div');
+    d.className = 'msg ' + who;
+    var w = document.createElement('span');
+    w.className = 'who'; w.textContent = who === 'you' ? 'You' : 'Pip';
+    d.appendChild(w);
+    d.appendChild(document.createTextNode(text));
+    var empty = log.querySelector('.empty');
+    if (empty) empty.remove();
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function homeTime() {
+    var d = new Date(), h = d.getHours(), ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    var m = ('0' + d.getMinutes()).slice(-2);
+    return "It's " + h + ":" + m + " " + ap + " here at home base.";
+  }
+
+  // The exact scripted exchange from the simulator + demo brain test run.
+  var SCRIPT = [
+    { you: 'Hey Pip, are you there?',
+      pip: function () { return 'Hey Kevin. Pip here, on the cloud, ready when you are.'; } },
+    { you: 'What time is it at home base?',
+      pip: function () { return homeTime(); } },
+    { you: 'Check on Robot Orchestra for me.',
+      pip: function () { return 'Robot Orchestra is safe on the home server. Roboto says hi.'; } }
+  ];
+
+  var running = false;
+  runBtn.addEventListener('click', async function () {
+    if (running) return;
+    running = true; runBtn.disabled = true; runBtn.textContent = 'Running…';
+    for (var i = 0; i < SCRIPT.length; i++) {
+      var turn = SCRIPT[i];
+      addMsg('you', turn.you);
+      setState('listening', 'Sending…');
+      await wait(800);
+      setState('thinking', 'Pip is thinking…');
+      await wait(1300);
+      var reply = turn.pip();
+      addMsg('pip', reply);
+      setState('talking', reply);
+      await wait(2100);
+      setState('idle', 'Tap “Run sample chat” — or press a state.');
+      await wait(350);
+    }
+    runBtn.disabled = false; runBtn.innerHTML = '▶&nbsp; Run sample chat';
+    running = false;
+  });
+
+  setState('idle');
+</script>
+</body>
+</html>
